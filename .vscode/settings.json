@@ -3,7 +3,7 @@
   "editor.rulers": [80],
   "editor.renderWhitespace": "all",
   "editor.trimAutoWhitespace": true,
-  "[json][jsonc][javascript][typescript][javascriptreact][typescriptreact][html][handlebars]": {
+  "[json][jsonc][javascript][typescript][javascriptreact][typescriptreact][html]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
   "[javascript][typescript]": {

@@ -1,21 +1,22 @@
+const path = require("node:path");
+
 async function activate(context) {
-  const { default: fetch } = await import("node-fetch");
+  const [{ default: fetch }, { default: Handlebars }, { readFile }, { join }] =
+    await Promise.all([
+      import("node-fetch"),
+      import("handlebars"),
+      import("node:fs/promises"),
+      import("node:path"),
+    ]);
   const vscode = require("vscode");
+  let definitionTemplate = Handlebars.compile(
+    await readFile(join(__dirname, "definition.hbs"), "utf8")
+  );
 
   const noHover = [];
 
-  /** @type {Map<string, vscode.Hover | null>} */
+  /** @type {Map<string, import('./dictionary').DictionaryEntry[] | null>} */
   const definitionCache = new Map();
-
-  function getWordAroundCursor(document, position) {
-    let lineText = document.lineAt(position).text,
-      pos = position.character;
-    let beforeText = lineText.slice(0, pos),
-      afterText = lineText.slice(pos);
-    beforeText = (beforeText.match(/\w*$/) || [""])[0];
-    afterText = (afterText.match(/^\w*/) || [""])[0];
-    return beforeText + afterText;
-  }
 
   /**
    * Find a definition for the given word, fetching from the
@@ -28,10 +29,10 @@ async function activate(context) {
    * definition of the word as a hover, or `[]` if the word is not known.
    */
   async function findHints(word, cancel) {
-    let definition = definitionCache.get(word);
-    if (definition === null) return noHover; // Cached miss
+    let definitions = definitionCache.get(word);
+    if (definitions === null) return noHover; // Cached miss
 
-    if (!definition) {
+    if (!definitions) {
       try {
         const abort = new AbortController();
         cancel.onCancellationRequested(() => abort.abort());
@@ -39,28 +40,30 @@ async function activate(context) {
           `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`,
           { signal: abort.signal }
         );
-        const data = await response.json();
+        definitions = await response.json();
 
-        if (!Array.isArray(data)) {
+        if (!Array.isArray(definitions) || definitions.length === 0) {
           // No match for word
           definitionCache.set(word, null);
           return noHover;
         }
 
-        definition = data[0];
-        definitionCache.set(word, definition);
-        if (word !== definition.word)
-          definitionCache.set(definition.word, definition);
+        definitionCache.set(word, definitions);
+        if (word !== definitions[0].word)
+          definitionCache.set(definitions[0].word, definitions);
       } catch (err) {
         if (cancel.isCancellationRequested) return noHover;
         return new vscode.Hover([`**Error looking up ${word}**`, "" + err]);
       }
     }
 
-    return new vscode.Hover([
-      `**${definition.word}**`,
-      "```json\n" + JSON.stringify(definition, null, 2) + "\n```",
-    ]);
+    return new vscode.Hover(
+      definitions
+        .map((definition) =>
+          definitionTemplate({ ...definition, hoverWord: word })
+        )
+        .join("\n\n")
+    );
   }
 
   context.subscriptions.push(
@@ -77,3 +80,13 @@ function deactivate() {}
 
 exports.activate = activate;
 exports.deactivate = deactivate;
+
+function getWordAroundCursor(document, position) {
+  let lineText = document.lineAt(position).text,
+    pos = position.character;
+  let beforeText = lineText.slice(0, pos),
+    afterText = lineText.slice(pos);
+  beforeText = (beforeText.match(/\w*$/) || [""])[0];
+  afterText = (afterText.match(/^\w*/) || [""])[0];
+  return beforeText + afterText;
+}
