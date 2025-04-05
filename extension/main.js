@@ -9,13 +9,13 @@ async function activate(context) {
       import("node:path"),
     ]);
   const vscode = require("vscode");
-  let definitionTemplate = Handlebars.compile(
-    await readFile(join(__dirname, "definition.hbs"), "utf8")
+  let hintTemplate = Handlebars.compile(
+    await readFile(join(__dirname, "hint.hbs"), "utf8")
   );
 
   const noHover = [];
 
-  /** @type {Map<string, import('./dictionary').DictionaryEntry[] | null>} */
+  /** @type {Map<string, import('./dictionary-api').DictionaryEntry[] | null>} */
   const definitionCache = new Map();
 
   /**
@@ -59,9 +59,7 @@ async function activate(context) {
 
     return new vscode.Hover(
       definitions
-        .map((definition) =>
-          definitionTemplate({ ...definition, hoverWord: word })
-        )
+        .map((definition) => hintTemplate({ ...definition, hoverWord: word }))
         .join("\n\n")
     );
   }
