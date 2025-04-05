@@ -1,39 +1,47 @@
 {
-      "name": "markdown-word-definition",
-      "displayName": "Markdown Word Definition",
-      "description": "English word definitions for Visual Studio Code",
-      "version": "0.1.0",
-      "license": "GPL-3.0",
-      "publisher": "Franklin Ross",
-      "author": "Franklin Ross",
-      "engines": {
-            "vscode": "^1.90.0"
-      },
-      "icon": "icon/icon.png",
-      "galleryBanner": {
-            "color": "#FFF5F5",
-            "theme": "light"
-      },
-      "categories": [
-            "Languages"
-      ],
-      "keywords": [
-            "vscode",
-            "English words",
-            "hint"
-      ],
-      "main": "./extension/main",
-      "scripts": {},
-      "devDependencies": {
-            "vscode": "^1.1.0"
-      },
-      "repository": {
-            "type": "git",
-            "url": "https://github.com/franklin-ross/markdown-word-definition"
-      },
-      "homepage": "https://github.com/franklin-ross/markdown-word-definition",
-      "activationEvents": [
-            "onLanguage:markdown",
-            "onLanguage:latex"
-      ]
+  "name": "markdown-word-definition",
+  "displayName": "Markdown Word Definition",
+  "description": "English word definitions for Visual Studio Code",
+  "version": "0.1.0",
+  "license": "GPL-3.0",
+  "publisher": "Franklin Ross",
+  "author": "Franklin Ross",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "icon": "icon/icon.png",
+  "galleryBanner": {
+    "color": "#FFF5F5",
+    "theme": "light"
+  },
+  "categories": [
+    "Programming Languages",
+    "Other"
+  ],
+  "keywords": [
+    "vscode",
+    "English",
+    "dictionary",
+    "definition",
+    "markdown",
+    "hint"
+  ],
+  "main": "./extension/main",
+  "scripts": {},
+  "devDependencies": {
+    "prettier": "^3.4.2",
+    "vscode": "^1.1.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/franklin-ross/markdown-word-definition"
+  },
+  "homepage": "https://github.com/franklin-ross/markdown-word-definition",
+  "activationEvents": [
+    "onLanguage:markdown",
+    "onLanguage:latex"
+  ],
+  "dependencies": {
+    "node-fetch": "^3.3.2"
+  }
 }
