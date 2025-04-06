@@ -4,7 +4,7 @@
   "description": "English word definitions for Visual Studio Code",
   "version": "0.1.0",
   "license": "GPL-3.0",
-  "publisher": "Franklin Ross",
+  "publisher": "franklin-ross",
   "author": "Franklin Ross",
   "engines": {
     "vscode": "^1.90.0"
@@ -43,6 +43,7 @@
   ],
   "dependencies": {
     "handlebars": "^4.7.8",
+    "ndjson": "^2.0.0",
     "node-fetch": "^3.3.2"
   }
 }
