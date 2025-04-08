@@ -5,22 +5,27 @@ import { dirname } from "node:path";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { type OutputChannel } from "vscode";
-import { type DictionaryEntry } from "./free-dictionary-client";
 
-export class DefinitionCache {
+type Alias = { $alias: string };
+
+export class DefinitionCache<DefinitionType extends object> {
   cachePath: undefined | string;
   log: undefined | OutputChannel;
   /** Whether there are changes since the last save. */
   dirty = false;
-  cache: Map<string, DictionaryEntry[] | null>;
+  cache: Map<string, DefinitionType | Alias | null>;
 
   constructor({
-    cache = new Map<string, DictionaryEntry[] | null>(),
+    cache = new Map<string, DefinitionType | Alias | null>(),
     cachePath,
     log,
   }: {
-    cache?: Map<string, DictionaryEntry[] | null>;
+    /** The in memory cache of dictionary entries. */
+    cache?: Map<string, DefinitionType | Alias | null>;
+    /** The path to the dictionary cache file when saving or refreshing from
+     * disk. */
     cachePath?: undefined | string;
+    /** The output channel to log to. */
     log?: undefined | OutputChannel;
   } = {}) {
     this.cachePath = cachePath;
@@ -28,12 +33,20 @@ export class DefinitionCache {
     this.log = log;
   }
 
-  get(key: string): DictionaryEntry[] | null | undefined {
-    return this.cache.get(key);
+  get(word: string): DefinitionType | null | undefined {
+    const entry = this.cache.get(word);
+    if (!entry) return entry;
+    if ("$alias" in entry) return this.get(entry.$alias);
+    return entry;
   }
 
-  set(key: string, value: DictionaryEntry[] | null): void {
-    this.cache.set(key, value);
+  set(word: string, value: DefinitionType | null): void {
+    this.cache.set(word, value);
+    this.dirty = true;
+  }
+
+  alias(word: string, alias: string): void {
+    this.cache.set(word, { $alias: alias });
     this.dirty = true;
   }
 
@@ -57,7 +70,7 @@ export class DefinitionCache {
     } catch (error) {
       if ((error as { code: string }).code !== "ENOENT")
         this.log?.appendLine(
-          "Error refreshing dictionary from cache: " + error
+          `DefinitionCache: Error refreshing from ${this.cachePath}: ${error}`,
         );
     }
   }
@@ -75,10 +88,10 @@ export class DefinitionCache {
         await save(this.cachePath, this.cache);
         this.dirty = false;
         this.log?.appendLine(
-          `Saved ${this.cache.size} entries to dictionary cache at ${this.cachePath}`
+          `DefinitionCache: Saved ${this.cache.size} entries to ${this.cachePath}`,
         );
       } catch (error) {
-        this.log?.appendLine("Error saving dictionary cache: " + error);
+        this.log?.appendLine("DefinitionCache: Save error: " + error);
       }
     }
   }
@@ -89,20 +102,20 @@ export class DefinitionCache {
    * @param {null | OutputChannel} log
    * @returns {Promise<DefinitionCache>}
    */
-  static async load(
+  static async load<DefinitionType extends object>(
     cachePath: string,
-    log?: undefined | OutputChannel
-  ): Promise<DefinitionCache> {
+    log?: undefined | OutputChannel,
+  ): Promise<DefinitionCache<DefinitionType>> {
     try {
-      const cache = await load(cachePath);
+      const cache = await load<DefinitionType>(cachePath);
       log?.appendLine(
-        `Loaded ${cache.size} entries from dictionary cache at ${cachePath}`
+        `DefinitionCache: Loaded ${cache.size} entries from ${cachePath}`,
       );
-      return new DefinitionCache({ cache, cachePath, log });
+      return new DefinitionCache<DefinitionType>({ cache, cachePath, log });
     } catch (error) {
       if ((error as { code: string }).code !== "ENOENT")
-        log?.appendLine("Error loading dictionary cache: " + error);
-      return new DefinitionCache({ cachePath, log });
+        log?.appendLine("DefinitionCache: Load error: " + error);
+      return new DefinitionCache<DefinitionType>({ cachePath, log });
     }
   }
 }
@@ -110,19 +123,21 @@ export class DefinitionCache {
 /**
  * Load a Map<string, unknown> from a newline delimited JSON file of entries.
  */
-export async function load(
-  path: string
-): Promise<Map<string, DictionaryEntry[] | null>> {
+export async function load<DefinitionType extends object>(
+  path: string,
+): Promise<Map<string, DefinitionType | Alias | null>> {
   return await pipeline(
     createReadStream(path),
     ndjson.parse(),
-    async function (source: AsyncIterable<[string, DictionaryEntry[] | null]>) {
-      const dictionary = new Map<string, DictionaryEntry[] | null>();
+    async function (
+      source: AsyncIterable<[string, DefinitionType | Alias | null]>,
+    ) {
+      const dictionary = new Map<string, DefinitionType | Alias | null>();
       for await (const [key, value] of source) {
         dictionary.set(key, value);
       }
       return dictionary;
-    }
+    },
   );
 }
 
@@ -133,20 +148,22 @@ export async function load(
  * dictionary where the entries don't already exist.
  * @param path The cache file path to load.
  */
-export async function refresh(
+export async function refresh<DefinitionType extends object>(
   path: string,
-  dictionary: Map<string, DictionaryEntry[] | null>
+  dictionary: Map<string, DefinitionType | Alias | null>,
 ): Promise<void> {
   await pipeline(
     createReadStream(path),
     ndjson.parse(),
-    async function (source: AsyncIterable<[string, DictionaryEntry[] | null]>) {
+    async function (
+      source: AsyncIterable<[string, DefinitionType | Alias | null]>,
+    ) {
       for await (const [key, value] of source) {
         if (!dictionary.has(key)) {
           dictionary.set(key, value);
         }
       }
-    }
+    },
   );
 }
 
@@ -159,11 +176,11 @@ export async function refresh(
  */
 export async function save(
   path: string | URL,
-  dictionary: Iterable<[key: string, entry: unknown]>
+  dictionary: Iterable<[key: string, entry: unknown]>,
 ): Promise<void> {
   await pipeline(
     Readable.from(dictionary),
     ndjson.stringify(),
-    createWriteStream(path)
+    createWriteStream(path),
   );
 }

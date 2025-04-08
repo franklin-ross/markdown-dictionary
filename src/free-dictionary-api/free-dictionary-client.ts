@@ -1,18 +1,5 @@
 import { type CancellationToken, type OutputChannel } from "vscode";
 
-export interface DictionaryApi {
-  /**
-   * Get the definition of a word from the free dictionary API.
-   * @param word The word to look up.
-   * @param cancel The
-   * cancellation token or abort signal to cancel the request.
-   */
-  get(
-    word: string,
-    cancel: AbortSignal | CancellationToken
-  ): Promise<DictionaryEntry[] | null>;
-}
-
 /**
  * Represents a phonetic transcription and optional audio for a word.
  */
@@ -89,7 +76,7 @@ export interface DictionaryEntry {
   meanings: Meaning[];
 }
 
-export class FreeDictionaryClient implements DictionaryApi {
+export class FreeDictionaryClient {
   private log: OutputChannel;
   private fetch: typeof globalThis.fetch;
 
@@ -115,20 +102,22 @@ export class FreeDictionaryClient implements DictionaryApi {
    */
   async get(
     word: string,
-    cancel: CancellationToken | AbortSignal
+    cancel?: CancellationToken | AbortSignal,
   ): Promise<DictionaryEntry[] | null> {
     const abort = toAbort(cancel);
-    if (abort.aborted) return null;
+    if (abort?.aborted) return null;
 
     try {
+      this.log.appendLine(
+        `FreeDictionaryClient: Fetching definition for ${word}`,
+      );
       const response = await this.fetch(
         `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`,
-        { signal: abort }
+        { signal: abort },
       );
-      if (abort.aborted) return null;
       if (!response.ok) {
         this.log.appendLine(
-          `HTTP error ${response.status} looking up ${word}: ${response.statusText}`
+          `FreeDictionaryClient: HTTP error ${response.status} looking up ${word}: ${response.statusText}`,
         );
 
         return null;
@@ -137,7 +126,7 @@ export class FreeDictionaryClient implements DictionaryApi {
       const definitions = await response.json();
 
       if (
-        abort.aborted ||
+        abort?.aborted ||
         !Array.isArray(definitions) ||
         definitions.length === 0
       ) {
@@ -146,15 +135,19 @@ export class FreeDictionaryClient implements DictionaryApi {
 
       return definitions;
     } catch (err) {
-      if (!abort.aborted)
-        this.log.appendLine(`Error looking up ${word}: ${err}`);
+      if (!abort?.aborted)
+        this.log.appendLine(
+          `FreeDictionaryClient: Error looking up ${word}: ${err}`,
+        );
       return null;
     }
   }
 }
 
-function toAbort(cancel: CancellationToken | AbortSignal): AbortSignal {
-  if (cancel instanceof AbortSignal) return cancel;
+function toAbort(
+  cancel?: CancellationToken | AbortSignal,
+): undefined | AbortSignal {
+  if (!cancel || cancel instanceof AbortSignal) return cancel;
   const abort = new AbortController();
   cancel.onCancellationRequested(() => abort.abort());
   return abort.signal;
