@@ -26,11 +26,24 @@
     "markdown",
     "hint"
   ],
-  "main": "./extension/main",
-  "scripts": {},
+  "main": "./dist/extension.js",
+  "scripts": {
+    "build": "tsc --noEmit && node esbuild.js",
+    "watch": "node esbuild.js --watch",
+    "watch:types": "node esbuild.js --watch",
+    "package": "tsc --noEmit && node esbuild.js --production && npx vsce package"
+  },
   "devDependencies": {
-    "prettier": "^3.4.2",
-    "vscode": "^1.1.0"
+    "@types/ndjson": "^2.0.4",
+    "@types/node": "^22.14.0",
+    "esbuild": "^0.25.2",
+    "esbuild-plugin-handlebars": "^1.0.3",
+    "handlebars": "^4.7.8",
+    "ndjson": "^2.0.0",
+    "node-fetch": "^3.3.2",
+    "prettier": "^3.5.3",
+    "typescript": "^5.8.3",
+    "vscode": "^1.1.37"
   },
   "repository": {
     "type": "git",
@@ -40,10 +53,5 @@
   "activationEvents": [
     "onLanguage:markdown",
     "onLanguage:latex"
-  ],
-  "dependencies": {
-    "handlebars": "^4.7.8",
-    "ndjson": "^2.0.0",
-    "node-fetch": "^3.3.2"
-  }
+  ]
 }

@@ -1,6 +1,9 @@
-icon/icon.svg
-test_awk_files/**
-utils/**
-vscode.d.ts
+src/
+dist/**.js.map
+node_modules/
+.vscode/
+.*
+*.js
+*.json
 *.tgz
 *.vsix

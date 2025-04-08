@@ -3,12 +3,12 @@
 ## Installation
 
 1. Press Ctrl+Shift+X to open the Extensions tab
-2. Type **Markdown word definition** to find the extension
-3. Click the Install button, then the Enable button
+2. Type `markdown-dictionary` to find the extension
+3. Click the Install button
 
 ## Usage
 
-Hover over a word in a Markdown file to see the dictionary definition of that word.
+Hover over a word in a Markdown file to see the dictionary definition of that word, loaded from [Free Dictionary API](https://dictionaryapi.dev/).
 
 ## Declaration
 

@@ -12,7 +12,8 @@
       "args": [
         "--extensionDevelopmentPath=${workspaceRoot}",
         "${workspaceRoot}"
-      ]
+      ],
+      "preLaunchTask": "npm: build"
     },
     {
       "type": "node",

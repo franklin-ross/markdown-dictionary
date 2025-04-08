@@ -1,28 +1,23 @@
-/** @type {import('./definition-cache.js').DefinitionCache>} */
-let definitionCache;
-/** @type {import('./free-dictionary-client.js').FreeDictionaryClient>} */
-let dictionaryClient;
+import { join } from "node:path";
+import type {
+  CancellationToken,
+  ExtensionContext,
+  Hover,
+  Position,
+  TextDocument,
+} from "vscode";
+import * as vscode from "vscode";
+import { DefinitionCache } from "./definition-cache.js";
+import { FreeDictionaryClient } from "./free-dictionary-client.js";
+import { hintTemplate } from "./template.js";
 
-/**
- *
- * @param {vscode.ExtensionContext} context
- */
-async function activate(context) {
-  const [
-    { join },
-    { DefinitionCache },
-    { FreeDictionaryClient },
-    { loadHintTemplate },
-  ] = await Promise.all([
-    import("node:path"),
-    import("./definition-cache.js"),
-    import("./free-dictionary-client.js"),
-    import("./template.js"),
-  ]);
-  const vscode = require("vscode");
+let definitionCache: DefinitionCache;
+let dictionaryClient: FreeDictionaryClient;
+
+async function activate(context: ExtensionContext) {
   const log = vscode.window.createOutputChannel("markdown-dictionary");
 
-  if (vscode.env.appHost === "desktop") {
+  if ((vscode.env as unknown as { appHost: string }).appHost === "desktop") {
     const cachePath = join(
       context.globalStoragePath,
       "dictionary-cache.ndjson"
@@ -34,23 +29,22 @@ async function activate(context) {
 
   dictionaryClient = new FreeDictionaryClient({ log });
 
-  const hintTemplate = await loadHintTemplate();
-
-  const noHover = [];
-
   /**
    * Find a definition for the given word, fetching from the
    * [Dictionary API](https://www.dictionaryapi.dev/) if necessary.
    *
-   * @param {string} word The word to look up.
-   * @param {import('vscode').CancellationToken} cancel A cancellation token.
+   * @param word The word to look up.
+   * @param cancel A cancellation token.
    *
-   * @returns {Thenable<vscode.Hover | null>} A promise that resolves to the
+   * @returns A promise that resolves to the
    * definition of the word as a hover, or `[]` if the word is not known.
    */
-  async function findHints(word, cancel) {
+  async function findHints(
+    word: string,
+    cancel: CancellationToken
+  ): Promise<Hover | null | undefined> {
     let definitions = definitionCache.get(word);
-    if (definitions === null) return noHover; // Cached miss
+    if (definitions === null) return null;
 
     if (!definitions) {
       definitions = await dictionaryClient.get(word, cancel);
@@ -62,13 +56,11 @@ async function activate(context) {
       }
     }
 
-    if (!definitions) return noHover;
+    if (!definitions) return null;
     const md = new vscode.MarkdownString(
-      definitions
-        .map((definition) => hintTemplate({ ...definition, hoverWord: word }))
-        .join("\n\n")
+      definitions.map((definition) => hintTemplate(definition)).join("\n\n")
     );
-    md.supportHtml = true;
+    (md as unknown as { supportHtml: boolean }).supportHtml = true;
     return new vscode.Hover(md);
   }
 
@@ -88,14 +80,14 @@ async function activate(context) {
  */
 async function deactivate() {
   await definitionCache.save();
-  definitionCache = undefined;
-  dictionaryClient = undefined;
+  (definitionCache as unknown as undefined) = undefined;
+  (dictionaryClient as unknown as undefined) = undefined;
 }
 
 exports.activate = activate;
 exports.deactivate = deactivate;
 
-function getWordAroundCursor(document, position) {
+function getWordAroundCursor(document: TextDocument, position: Position) {
   let lineText = document.lineAt(position).text,
     pos = position.character;
   let beforeText = lineText.slice(0, pos),

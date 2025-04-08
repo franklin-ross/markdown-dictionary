@@ -1,6 +1,4 @@
-.vscode
-test_awk_files
-utils/cache
+src/
+.vscode/
 *.vsix
 *.tgz
-vscode.d.ts

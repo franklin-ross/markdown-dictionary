@@ -1,38 +1,38 @@
-const { mkdir, rm } = require("node:fs/promises");
-const { createReadStream, createWriteStream } = require("node:fs");
-const { dirname } = require("node:path");
-const ndjson = require("ndjson");
-const { Readable } = require("node:stream");
-const { pipeline } = require("node:stream/promises");
+import * as ndjson from "ndjson";
+import { createReadStream, createWriteStream } from "node:fs";
+import { mkdir, rm } from "node:fs/promises";
+import { dirname } from "node:path";
+import { Readable } from "node:stream";
+import { pipeline } from "node:stream/promises";
+import { type OutputChannel } from "vscode";
+import { type DictionaryEntry } from "./free-dictionary-client";
 
-class DefinitionCache {
-  /** @type {null | string | URL} */
-  cachePath;
-  /** @type {null | import('vscode').OutputChannel} */
-  log;
+export class DefinitionCache {
+  cachePath: undefined | string;
+  log: undefined | OutputChannel;
   /** Whether there are changes since the last save. */
   dirty = false;
+  cache: Map<string, DictionaryEntry[] | null>;
 
-  constructor({ cache = new Map(), cachePath = null, log = null } = {}) {
+  constructor({
+    cache = new Map<string, DictionaryEntry[] | null>(),
+    cachePath,
+    log,
+  }: {
+    cache?: Map<string, DictionaryEntry[] | null>;
+    cachePath?: undefined | string;
+    log?: undefined | OutputChannel;
+  } = {}) {
     this.cachePath = cachePath;
     this.cache = cache;
     this.log = log;
   }
 
-  /**
-   * @param {string} key
-   * @returns {import('./free-dictionary-api').DictionaryEntry[] | null}
-   */
-  get(key) {
+  get(key: string): DictionaryEntry[] | null | undefined {
     return this.cache.get(key);
   }
 
-  /**
-   * @param {string} key
-   * @param {import('./free-dictionary-api').DictionaryEntry[] | null} value
-   * @returns {void}
-   */
-  set(key, value) {
+  set(key: string, value: DictionaryEntry[] | null): void {
     this.cache.set(key, value);
     this.dirty = true;
   }
@@ -45,7 +45,7 @@ class DefinitionCache {
 
   /** Remove the dictionary cache file from disk. */
   async clearCache() {
-    await rm(this.cachePath, { force: true });
+    if (this.cachePath) await rm(this.cachePath, { force: true });
   }
 
   /** Refresh the in-memory dictionary cache from disk in case there are new
@@ -55,7 +55,7 @@ class DefinitionCache {
     try {
       await refresh(this.cachePath, this.cache);
     } catch (error) {
-      if (error.code !== "ENOENT")
+      if ((error as { code: string }).code !== "ENOENT")
         this.log?.appendLine(
           "Error refreshing dictionary from cache: " + error
         );
@@ -66,7 +66,7 @@ class DefinitionCache {
    * Syncs these dictionary entries with those cached on disk.
    * @returns {Promise<void>}
    */
-  async save() {
+  async save(): Promise<void> {
     if (this.cachePath && this.cache.size > 0 && this.dirty) {
       await this.refresh();
 
@@ -86,10 +86,13 @@ class DefinitionCache {
   /**
    * Loads a dictionary from the given cache path.
    * @param {string | URL} cachePath
-   * @param {null | import('vscode').OutputChannel} log
+   * @param {null | OutputChannel} log
    * @returns {Promise<DefinitionCache>}
    */
-  static async load(cachePath, log) {
+  static async load(
+    cachePath: string,
+    log?: undefined | OutputChannel
+  ): Promise<DefinitionCache> {
     try {
       const cache = await load(cachePath);
       log?.appendLine(
@@ -97,7 +100,7 @@ class DefinitionCache {
       );
       return new DefinitionCache({ cache, cachePath, log });
     } catch (error) {
-      if (error.code !== "ENOENT")
+      if ((error as { code: string }).code !== "ENOENT")
         log?.appendLine("Error loading dictionary cache: " + error);
       return new DefinitionCache({ cachePath, log });
     }
@@ -106,16 +109,15 @@ class DefinitionCache {
 
 /**
  * Load a Map<string, unknown> from a newline delimited JSON file of entries.
- * @param {string | URL} path The file path to load.
- * @returns {Promise<Map<string, unknown>>}
  */
-async function load(path) {
+export async function load(
+  path: string
+): Promise<Map<string, DictionaryEntry[] | null>> {
   return await pipeline(
     createReadStream(path),
     ndjson.parse(),
-    async function (source) {
-      /** @type {Map<string, unknown>} */
-      const dictionary = new Map();
+    async function (source: AsyncIterable<[string, DictionaryEntry[] | null]>) {
+      const dictionary = new Map<string, DictionaryEntry[] | null>();
       for await (const [key, value] of source) {
         dictionary.set(key, value);
       }
@@ -127,16 +129,18 @@ async function load(path) {
 /**
  * Load new data into a Map<string, unknown> from a newline delimited JSON file
  * of entries.
- * @param {Map<string, unknown>} dictionary Load cached data into this
+ * @param dictionary Load cached data into this
  * dictionary where the entries don't already exist.
- * @param {string | URL} path The cache file path to load.
- * @returns {Promise<void>}
+ * @param path The cache file path to load.
  */
-async function refresh(dictionary, path) {
+export async function refresh(
+  path: string,
+  dictionary: Map<string, DictionaryEntry[] | null>
+): Promise<void> {
   await pipeline(
     createReadStream(path),
     ndjson.parse(),
-    async function (source) {
+    async function (source: AsyncIterable<[string, DictionaryEntry[] | null]>) {
       for await (const [key, value] of source) {
         if (!dictionary.has(key)) {
           dictionary.set(key, value);
@@ -148,20 +152,18 @@ async function refresh(dictionary, path) {
 
 /**
  * Create or replace a newline delimited JSON file of entries.
- * @param {string | URL} path The file path to save.
- * @param {Iterable<[key: string, entry: unknown]>} dictionary The dictionary
+ * @param path The file path to save.
+ * @param dictionary The dictionary
  * entries to save. This could be a Map.
  * @returns {Promise<void>}
  */
-async function save(path, dictionary) {
+export async function save(
+  path: string | URL,
+  dictionary: Iterable<[key: string, entry: unknown]>
+): Promise<void> {
   await pipeline(
     Readable.from(dictionary),
     ndjson.stringify(),
     createWriteStream(path)
   );
 }
-
-exports.refresh = refresh;
-exports.save = save;
-exports.load = load;
-exports.DefinitionCache = DefinitionCache;
