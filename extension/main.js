@@ -63,11 +63,13 @@ async function activate(context) {
     }
 
     if (!definitions) return noHover;
-    return new vscode.Hover(
+    const md = new vscode.MarkdownString(
       definitions
         .map((definition) => hintTemplate({ ...definition, hoverWord: word }))
         .join("\n\n")
     );
+    md.supportHtml = true;
+    return new vscode.Hover(md);
   }
 
   context.subscriptions.push(
