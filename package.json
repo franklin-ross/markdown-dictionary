@@ -1,7 +1,7 @@
 {
-  "name": "markdown-word-definition",
-  "displayName": "Markdown Word Definition",
-  "description": "English word definitions for Visual Studio Code",
+  "name": "markdown-dictionary",
+  "displayName": "Markdown Dictionary",
+  "description": "English word definition hints for Visual Studio Code",
   "version": "0.1.0",
   "license": "GPL-3.0",
   "publisher": "franklin-ross",
@@ -34,9 +34,9 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/franklin-ross/markdown-word-definition"
+    "url": "https://github.com/franklin-ross/markdown-dictionary"
   },
-  "homepage": "https://github.com/franklin-ross/markdown-word-definition",
+  "homepage": "https://github.com/franklin-ross/markdown-dictionary",
   "activationEvents": [
     "onLanguage:markdown",
     "onLanguage:latex"

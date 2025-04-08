@@ -1,3 +1,16 @@
+export interface DictionaryApi {
+  /**
+   * Get the definition of a word from the free dictionary API.
+   * @param {string} word The word to look up.
+   * @param {import('vscode').CancellationToken | AbortSignal} cancel The
+   * cancellation token or abort signal to cancel the request.
+   */
+  get(
+    word: string,
+    cancel: AbortSignal | import("vscode").CancellationToken
+  ): Promise<DictionaryEntry | null>;
+}
+
 /**
  * Represents a phonetic transcription and optional audio for a word.
  */

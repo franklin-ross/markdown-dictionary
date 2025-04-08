@@ -1,9 +1,7 @@
-/** @type {import('vscode').OutputChannel} */
-let log;
-/** @type {string} */
-let cachePath;
-/** @type {Map<string, import('./dictionary-api').DictionaryEntry[] | null>} */
-let definitionCache = new Map();
+/** @type {import('./definition-cache.js').DefinitionCache>} */
+let definitionCache;
+/** @type {import('./free-dictionary-client.js').FreeDictionaryClient>} */
+let dictionaryClient;
 
 /**
  *
@@ -11,35 +9,32 @@ let definitionCache = new Map();
  */
 async function activate(context) {
   const [
-    { default: fetch },
-    { default: Handlebars },
-    { readFile },
     { join },
-    definitionDb,
+    { DefinitionCache },
+    { FreeDictionaryClient },
+    { loadHintTemplate },
   ] = await Promise.all([
-    import("node-fetch"),
-    import("handlebars"),
-    import("node:fs/promises"),
     import("node:path"),
-    import("./definition-db.js"),
+    import("./definition-cache.js"),
+    import("./free-dictionary-client.js"),
+    import("./template.js"),
   ]);
   const vscode = require("vscode");
-  log = vscode.window.createOutputChannel("markdown-dictionary");
-
-  let hintTemplate = Handlebars.compile(
-    await readFile(join(__dirname, "hint.hbs"), "utf8")
-  );
+  const log = vscode.window.createOutputChannel("markdown-dictionary");
 
   if (vscode.env.appHost === "desktop") {
-    cachePath = join(context.globalStoragePath, "dictionary-cache.ndjson");
-
-    try {
-      definitionCache = await definitionDb.load(cachePath);
-      log.appendLine("Loaded dictionary cache from " + cachePath);
-    } catch (error) {
-      log.appendLine("Failed to load dictionary cache: " + error);
-    }
+    const cachePath = join(
+      context.globalStoragePath,
+      "dictionary-cache.ndjson"
+    );
+    definitionCache = await DefinitionCache.load(cachePath, log);
+  } else {
+    definitionCache = new DefinitionCache({ log });
   }
+
+  dictionaryClient = new FreeDictionaryClient({ log });
+
+  const hintTemplate = await loadHintTemplate();
 
   const noHover = [];
 
@@ -58,30 +53,16 @@ async function activate(context) {
     if (definitions === null) return noHover; // Cached miss
 
     if (!definitions) {
-      try {
-        const abort = new AbortController();
-        cancel.onCancellationRequested(() => abort.abort());
-        const response = await fetch(
-          `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`,
-          { signal: abort.signal }
-        );
-        definitions = await response.json();
+      definitions = await dictionaryClient.get(word, cancel);
 
-        if (!Array.isArray(definitions) || definitions.length === 0) {
-          // No match for word
-          definitionCache.set(word, null);
-          return noHover;
-        }
-
+      if (definitions) {
         definitionCache.set(word, definitions);
         if (word !== definitions[0].word)
           definitionCache.set(definitions[0].word, definitions);
-      } catch (err) {
-        if (cancel.isCancellationRequested) return noHover;
-        return new vscode.Hover([`**Error looking up ${word}**`, "" + err]);
       }
     }
 
+    if (!definitions) return noHover;
     return new vscode.Hover(
       definitions
         .map((definition) => hintTemplate({ ...definition, hoverWord: word }))
@@ -104,43 +85,9 @@ async function activate(context) {
  * @param {vscode.ExtensionContext} context
  */
 async function deactivate() {
-  if (cachePath && definitionCache.size > 0) {
-    const [{ mkdir }, { dirname }, definitionDb] = await Promise.all([
-      import("node:fs/promises"),
-      import("node:path"),
-      import("./definition-db.js"),
-    ]);
-
-    try {
-      await mkdir(dirname(cachePath), { recursive: true });
-    } catch (error) {
-      log.appendLine(
-        "Failed to create extension global storage path: " + error
-      );
-    }
-
-    let cacheToStore = definitionCache;
-
-    try {
-      cacheToStore = await definitionDb.load(cachePath);
-      for (const [key, value] of definitionCache) {
-        cacheToStore.set(key, value);
-      }
-    } catch (error) {
-      log.appendLine(
-        "Failed to merge dictionary into existing dictionary cache: " + error
-      );
-    }
-
-    try {
-      await definitionDb.save(cachePath, cacheToStore);
-      log.appendLine("Saved dictionary cache to " + cachePath);
-    } catch (error) {
-      log.appendLine("Failed to save dictionary cache: " + error);
-    }
-  }
-
-  definitionCache.clear();
+  await definitionCache.save();
+  definitionCache = undefined;
+  dictionaryClient = undefined;
 }
 
 exports.activate = activate;
