@@ -1,0 +1,17 @@
+{{#each this}}
+
+## {{word}}
+
+{{#each meanings}}
+### {{this.partOfSpeech}}
+
+{{#each this.definitions}}
+ 1. {{this.definition}}
+{{~#if this.example}}<br>*"{{this.example}}"*{{/if}}
+{{~#if this.synonyms}}<br>*Synonyms:{{#each this.synonyms}} {{this}}{{#unless @last}},{{/unless}}{{/each}}*{{/if}}
+{{~#if this.antonyms}}<br>*Antonyms:{{#each this.antonyms}} {{this}}{{#unless @last}},{{/unless}}{{/each}}*{{/if}}
+{{/each}}
+
+{{/each}}
+
+{{/each}}
