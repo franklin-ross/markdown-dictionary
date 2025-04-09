@@ -4,19 +4,19 @@ export class DefinitionApiClient<TModel> {
   private log: OutputChannel;
   private fetch: typeof globalThis.fetch;
   private toRequest: (word: string) => string | URL | Request;
-  private toModel: (data: unknown) => TModel | undefined;
+  private toModel: (data: Response) => Promise<TModel | null | undefined>;
 
   constructor({
     log,
     toRequest,
-    toModel = (data) => data as TModel,
+    toModel = (response) => response.json() as Promise<TModel>,
     fetch = globalThis.fetch,
   }: {
     log: OutputChannel;
     /** Convert a word to a request for that definition. */
     toRequest: (word: string) => string | URL | Request;
     /** Map the API result to the model. */
-    toModel?: (data: unknown) => TModel;
+    toModel?: (data: Response) => Promise<TModel | null | undefined>;
     /** A custom fetch implementation. */
     fetch?: undefined | typeof globalThis.fetch;
   }) {
@@ -54,8 +54,7 @@ export class DefinitionApiClient<TModel> {
         return response.status == 404 ? null : undefined;
       }
 
-      const responseModel = await response.json();
-      const model = this.toModel(responseModel);
+      const model = await this.toModel(response);
       return model;
     } catch (err) {
       if (!abort?.aborted)

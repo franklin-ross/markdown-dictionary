@@ -66,7 +66,10 @@ export class DefinitionCache<DefinitionType extends object> {
   async refresh() {
     if (!this.cachePath) return;
     try {
-      await refresh(this.cachePath, this.cache);
+      const count = await refresh(this.cachePath, this.cache);
+      this.log?.appendLine(
+        `DefinitionCache: Loaded ${this.cache.size} entries from ${this.cachePath}`,
+      );
     } catch (error) {
       if ((error as { code: string }).code !== "ENOENT")
         this.log?.appendLine(
@@ -147,22 +150,26 @@ export async function load<DefinitionType extends object>(
  * @param dictionary Load cached data into this
  * dictionary where the entries don't already exist.
  * @param path The cache file path to load.
+ * @returns {Promise<number>} The number of new entries loaded into the cache.
  */
 export async function refresh<DefinitionType extends object>(
   path: string,
   dictionary: Map<string, DefinitionType | Alias | null>,
-): Promise<void> {
-  await pipeline(
+): Promise<number> {
+  return await pipeline(
     createReadStream(path),
     ndjson.parse(),
     async function (
       source: AsyncIterable<[string, DefinitionType | Alias | null]>,
     ) {
+      let count = 0;
       for await (const [key, value] of source) {
         if (!dictionary.has(key)) {
           dictionary.set(key, value);
+          count++;
         }
       }
+      return count;
     },
   );
 }

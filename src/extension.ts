@@ -6,10 +6,13 @@ const forCleanup = new Set<AsyncDisposable>();
 const log = vscode.window.createOutputChannel("markdown-dictionary");
 
 async function activate(context: ExtensionContext) {
-  const hintProvider = await FreeDictionaryProvider.create(
+  const isDesktop =
+    (vscode.env as unknown as { appHost: string }).appHost === "desktop";
+
+  const hintProvider = new FreeDictionaryProvider({
     log,
-    context.globalStoragePath,
-  );
+    storagePath: isDesktop ? context.globalStoragePath : undefined,
+  });
   forCleanup.add(hintProvider);
 
   context.subscriptions.push(
