@@ -22,5 +22,6 @@
     "tsconfig.json": "tsconfig.*.json",
     "package.json": "package-lock.json, yarn.lock, pnpm-lock.yaml, bun.lockb, .gitignore, .npmignore, tsconfig.json, *.csproj, Directory.Build.*, Directory.Packages.props, appsettings*.json, *.sln, .editorconfig, tailwind.config.js, .eslintrc.js, .prettierrc.js, .prettierrc.json",
     "appsettings.json": "appsettings.*.json"
-  }
+  },
+  "cSpell.language": "en-AU,en-GB"
 }

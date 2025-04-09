@@ -40,7 +40,6 @@
     "esbuild-plugin-handlebars": "^1.0.3",
     "handlebars": "^4.7.8",
     "ndjson": "^2.0.0",
-    "node-fetch": "^3.3.2",
     "prettier": "^3.5.3",
     "typescript": "^5.8.3",
     "vscode": "^1.1.37"

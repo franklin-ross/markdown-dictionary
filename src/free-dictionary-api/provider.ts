@@ -1,11 +1,8 @@
 import { type TemplateDelegate } from "handlebars";
 import { join } from "node:path";
 import * as vscode from "vscode";
+import { DefinitionApiClient } from "../definition-api-client.js";
 import { DefinitionCache } from "../definition-cache.js";
-import {
-  FreeDictionaryClient,
-  type DictionaryEntry,
-} from "./free-dictionary-client.js";
 import template from "./hint.hbs";
 
 export const hintTemplate: TemplateDelegate<DictionaryEntry> = template;
@@ -16,12 +13,12 @@ export const hintTemplate: TemplateDelegate<DictionaryEntry> = template;
  * VSCode.
  */
 export class FreeDictionaryProvider implements AsyncDisposable {
-  private client: FreeDictionaryClient;
+  private client: DefinitionApiClient<DictionaryEntry[]>;
   private cache: DefinitionCache<DictionaryEntry[]>;
   private log: vscode.OutputChannel;
 
   constructor(opts: {
-    client: FreeDictionaryClient;
+    client: DefinitionApiClient<DictionaryEntry[]>;
     cache: DefinitionCache<DictionaryEntry[]>;
     log: vscode.OutputChannel;
   }) {
@@ -37,7 +34,10 @@ export class FreeDictionaryProvider implements AsyncDisposable {
   ): Promise<FreeDictionaryProvider> {
     log.appendLine("FreeDictionaryProvider: Initialising standard provider");
 
-    const client = new FreeDictionaryClient({ log });
+    const client = new DefinitionApiClient<DictionaryEntry[]>({
+      log,
+      toRequest: toFreeDictionaryRequest,
+    });
     let cache: DefinitionCache<DictionaryEntry[]>;
 
     if (
@@ -82,7 +82,10 @@ export class FreeDictionaryProvider implements AsyncDisposable {
       // have already paid the cost.
       definitions = await this.client.get(word);
 
-      if (definitions) {
+      if (definitions === null) {
+        // Cache a miss for this word
+        this.cache.set(word, null);
+      } else if (Array.isArray(definitions) && definitions.length > 0) {
         const definedWord = definitions[0].word;
         this.cache.set(definedWord, definitions);
         if (word !== definedWord) this.cache.alias(word, definedWord);
@@ -91,7 +94,7 @@ export class FreeDictionaryProvider implements AsyncDisposable {
 
     if (!definitions) {
       this.log.appendLine(
-        "FreeDictionaryProvider: No hint available for " + word,
+        `FreeDictionaryProvider: No hint available for "${word}"`,
       );
       return null;
     }
@@ -100,15 +103,95 @@ export class FreeDictionaryProvider implements AsyncDisposable {
       definitions.map((definition) => hintTemplate(definition)).join("\n\n"),
     );
     (md as unknown as { supportHtml: boolean }).supportHtml = true;
-    this.log.appendLine("FreeDictionaryProvider: Providing hint for " + word);
+    this.log.appendLine(`FreeDictionaryProvider: Providing hint for "${word}"`);
     return new vscode.Hover(md);
   }
 
   async [Symbol.asyncDispose](): Promise<void> {
     this.log.appendLine("FreeDictionaryProvider: Shutting down");
     await this.cache.save();
-    this.client = undefined as unknown as FreeDictionaryClient;
-    this.cache = undefined as unknown as DefinitionCache<DictionaryEntry[]>;
+    this.client = undefined as any;
+    this.cache = undefined as any;
     this.log.appendLine("FreeDictionaryProvider: Shutdown complete");
   }
+}
+
+function toFreeDictionaryRequest(word: string): string | URL | Request {
+  return `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`;
+}
+
+/**
+ * Represents a phonetic transcription and optional audio for a word.
+ */
+interface Phonetic {
+  /**
+   * The phonetic spelling of the word.
+   */
+  text?: string;
+  /**
+   * URL to the audio pronunciation of the word.
+   */
+  audio?: string;
+}
+
+/**
+ * Represents a single definition of a word.
+ */
+interface Definition {
+  /**
+   * The definition of the word.
+   */
+  definition: string;
+  /**
+   * An example sentence using the word in the defined sense.
+   */
+  example?: string;
+  /**
+   * An array of synonyms for the word in this definition.
+   */
+  synonyms: string[];
+  /**
+   * An array of antonyms for the word in this definition.
+   */
+  antonyms: string[];
+}
+
+/**
+ * Represents the meanings of a word for a specific part of speech.
+ */
+interface Meaning {
+  /**
+   * The part of speech (e.g., "exclamation", "noun", "verb").
+   */
+  partOfSpeech: string;
+  /**
+   * An array of definitions for the word under this part of speech.
+   */
+  definitions: Definition[];
+}
+
+/**
+ * Represents the complete dictionary entry for a word.
+ */
+interface DictionaryEntry {
+  /**
+   * The word itself.
+   */
+  word: string;
+  /**
+   * The primary phonetic transcription of the word (optional).
+   */
+  phonetic?: string;
+  /**
+   * An array of phonetic transcriptions and optional audio pronunciations (optional).
+   */
+  phonetics?: Phonetic[];
+  /**
+   * Information about the origin of the word (optional).
+   */
+  origin?: string;
+  /**
+   * An array of meanings for the word, categorized by part of speech.
+   */
+  meanings: Meaning[];
 }

@@ -1,3 +1,9 @@
 {
-  "recommendations": ["connor4312.esbuild-problem-matchers"]
+  "recommendations": [
+    "connor4312.esbuild-problem-matchers",
+    "streetsidesoftware.code-spell-checker-australian-english",
+    "streetsidesoftware.code-spell-checker",
+    "editorconfig.editorconfig",
+    "esbenp.prettier-vscode"
+  ]
 }
