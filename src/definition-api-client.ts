@@ -42,12 +42,14 @@ export class DefinitionApiClient<TModel> {
     if (abort?.aborted) return undefined;
 
     try {
-      this.log.appendLine(`JsonApiClient: Fetching definition for ${word}`);
+      this.log.appendLine(
+        `definition-api-client: Fetching definition for ${word}`,
+      );
       const request = this.toRequest(word);
       const response = await this.fetch(request, { signal: abort });
       if (!response.ok) {
         this.log.appendLine(
-          `JsonApiClient: HTTP error ${response.status} looking up ${word}: ${response.statusText}`,
+          `definition-api-client: HTTP error ${response.status} looking up ${word}: ${response.statusText}`,
         );
 
         // If we get a 404, assume that means the word doesn't exist
@@ -58,7 +60,9 @@ export class DefinitionApiClient<TModel> {
       return model;
     } catch (err) {
       if (!abort?.aborted)
-        this.log.appendLine(`JsonApiClient: Error looking up ${word}: ${err}`);
+        this.log.appendLine(
+          `definition-api-client: Error looking up ${word}: ${err}`,
+        );
       return undefined;
     }
   }

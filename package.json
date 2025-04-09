@@ -50,7 +50,27 @@
   },
   "homepage": "https://github.com/franklin-ross/markdown-dictionary",
   "activationEvents": [
-    "onLanguage:markdown",
-    "onLanguage:latex"
-  ]
+    "onLanguage:markdown"
+  ],
+  "contributes": {
+    "configuration": {
+      "title": "Markdown Dictionary Settings",
+      "type": "object",
+      "properties": {
+        "markdownDictionary.provider": {
+          "type": "string",
+          "description": "Which dictionary provider to use.",
+          "enum": [
+            "free-dictionary-api",
+            "words-api"
+          ],
+          "default": "free-dictionary-api"
+        },
+        "markdownDictionary.wordsApiKey": {
+          "type": "string",
+          "description": "Your WordsAPI key. You can get one for free at https://rapidapi.com/dpventures/api/wordsapi"
+        }
+      }
+    }
+  }
 }

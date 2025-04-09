@@ -1,3 +1,16 @@
+export interface WordsApiModel {
+  word: string;
+  partOfSpeech: Record<
+    string,
+    {
+      definition: string;
+      examples?: string[];
+      synonyms?: string[];
+      antonyms?: string[];
+    }[]
+  >;
+}
+
 /**
  * Represents the top-level structure of the JSON response from the WordsAPI for a single word.
  */
@@ -9,7 +22,7 @@ export interface WordsAPIResponse {
   /**
    * An array of results, each representing a different meaning or aspect of the word.
    */
-  results?: Result[];
+  results: Result[];
   /**
    * Information about the syllables of the word.
    */
@@ -31,15 +44,19 @@ export interface Result {
   /**
    * The definition of the word in this context.
    */
-  definition?: string;
+  definition: string;
   /**
    * The part of speech of the word (e.g., noun, verb, adjective).
    */
-  partOfSpeech?: string;
+  partOfSpeech: string;
   /**
    * An array of synonyms for the word in this context.
    */
   synonyms?: string[];
+  /**
+   * An array of antonyms for the word in this context.
+   */
+  antonyms?: string[];
   /**
    * An array of words that are a broader category of the current word.
    */

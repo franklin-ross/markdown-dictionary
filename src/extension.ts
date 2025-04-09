@@ -1,25 +1,35 @@
-import type { ExtensionContext, Position, TextDocument } from "vscode";
 import * as vscode from "vscode";
+import { ExtensionContext, Position, TextDocument } from "vscode";
+import { HintProvider } from "./definition-provider.js";
 import { FreeDictionaryProvider } from "./free-dictionary-api/provider.js";
+import { WordsApiProvider } from "./words-api/provider.js";
 
 const forCleanup = new Set<AsyncDisposable>();
 const log = vscode.window.createOutputChannel("markdown-dictionary");
 
+const providers = new Map<string, HintProvider>();
+const isDesktop =
+  (vscode.env as unknown as { appHost: string }).appHost === "desktop";
+
 async function activate(context: ExtensionContext) {
-  const isDesktop =
-    (vscode.env as unknown as { appHost: string }).appHost === "desktop";
-
-  const hintProvider = new FreeDictionaryProvider({
-    log,
-    storagePath: isDesktop ? context.globalStoragePath : undefined,
-  });
-  forCleanup.add(hintProvider);
-
   context.subscriptions.push(
     vscode.languages.registerHoverProvider("markdown", {
       provideHover: (doc, position, cancel) => {
+        const config = vscode.workspace.getConfiguration(
+          "markdownDictionary",
+          doc.uri,
+        );
         const word = getWordAroundCursor(doc, position);
-        return hintProvider.hint(word, cancel);
+
+        switch (config.get("provider")) {
+          case "words-api":
+            return getWordsApiProvider(context, config)?.hint(word, cancel);
+          default:
+            return getFreeDictionaryProvider(context, config).hint(
+              word,
+              cancel,
+            );
+        }
       },
     }),
   );
@@ -35,6 +45,8 @@ async function deactivate() {
     }
   }
   forCleanup.clear();
+  providers.clear();
+  log.dispose();
 }
 
 exports.activate = activate;
@@ -48,4 +60,47 @@ function getWordAroundCursor(doc: TextDocument, position: Position) {
   beforeText = (beforeText.match(/\w*$/) || [""])[0];
   afterText = (afterText.match(/^\w*/) || [""])[0];
   return beforeText + afterText;
+}
+
+function getFreeDictionaryProvider(
+  context: ExtensionContext,
+  config: vscode.WorkspaceConfiguration,
+) {
+  const providerKey = "free-dictionary-api";
+  let provider = providers.get(providerKey) as FreeDictionaryProvider;
+  if (provider) return provider;
+
+  provider = new FreeDictionaryProvider({
+    log,
+    storagePath: isDesktop ? context.globalStoragePath : undefined,
+  });
+  providers.set(providerKey, provider);
+  forCleanup.add(provider);
+  return provider;
+}
+
+function getWordsApiProvider(
+  context: ExtensionContext,
+  config: vscode.WorkspaceConfiguration,
+) {
+  const wordsApiKey = config.get("wordsApiKey") as string;
+  if (!wordsApiKey) {
+    log.appendLine(
+      "Using 'markdownDictionary.provider: words-api' requires 'markdownDictionary.wordsApiKey' to be set",
+    );
+    return undefined;
+  }
+
+  const providerKey = "words-api+" + wordsApiKey;
+  let provider = providers.get(providerKey) as WordsApiProvider;
+  if (provider) return provider;
+
+  provider = new WordsApiProvider({
+    log,
+    storagePath: isDesktop ? context.globalStoragePath : undefined,
+    wordsApiKey,
+  });
+  providers.set(providerKey, provider);
+  forCleanup.add(provider);
+  return provider;
 }

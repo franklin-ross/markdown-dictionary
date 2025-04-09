@@ -16,12 +16,29 @@ export interface StandardProviderOpts<TModel extends object> {
   id: string;
   log: vscode.OutputChannel;
   toRequest: (word: string) => string | URL | Request;
-  toModel: (response: Response) => Promise<TModel>;
+  toModel: (response: Response) => Promise<TModel | null | undefined>;
   hintTemplate: TemplateDelegate<TModel>;
   storagePath: string | undefined;
 }
 
-export class Provider<TModel extends object> implements AsyncDisposable {
+export interface HintProvider {
+  /**
+   * Find a definition for the given word and format it for display as a hover
+   * hint in VSCode.
+   * @param word The word to look up. Case is ignored.
+   * @param cancel Cancel the request.
+   * @returns A promise that resolves to the definition of the word as a hover,
+   * or `null` if the word is not known.
+   */
+  hint(
+    word: string,
+    cancel: vscode.CancellationToken,
+  ): Promise<vscode.Hover | null | undefined>;
+}
+
+export class Provider<TModel extends object>
+  implements AsyncDisposable, HintProvider
+{
   readonly id: string;
   private log: vscode.OutputChannel;
   private client: DefinitionApiClient<TModel>;

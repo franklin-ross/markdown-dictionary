@@ -1,9 +1,9 @@
 import type { OutputChannel } from "vscode";
 import { Provider } from "../definition-provider.js";
 import template from "./hint.hbs";
-import type { WordsAPIResponse } from "./models.js";
+import type { WordsApiModel, WordsAPIResponse } from "./models.js";
 
-export class WordsApiProvider extends Provider<WordsAPIResponse> {
+export class WordsApiProvider extends Provider<WordsApiModel> {
   constructor({
     log,
     wordsApiKey,
@@ -13,7 +13,12 @@ export class WordsApiProvider extends Provider<WordsAPIResponse> {
     wordsApiKey: string;
     storagePath: string | undefined;
   }) {
-    const requestInit = { headers: { "X-Mashape-Key": wordsApiKey } };
+    const requestInit = {
+      headers: {
+        "x-rapidapi-key": wordsApiKey,
+        "x-rapidapi-host": "wordsapiv1.p.rapidapi.com",
+      },
+    };
     super({
       id: "words-api",
       log,
@@ -21,10 +26,30 @@ export class WordsApiProvider extends Provider<WordsAPIResponse> {
       hintTemplate: template,
       toRequest: (word) =>
         new Request(
-          `https://wordsapiv1.p.mashape.com/words/${encodeURIComponent(word)}`,
+          `https://wordsapiv1.p.rapidapi.com/words/${encodeURIComponent(word)}`,
           requestInit,
         ),
-      toModel: async (response) => response.json() as Promise<WordsAPIResponse>,
+      toModel: async (response) => {
+        const model = (await response.json()) as WordsAPIResponse;
+
+        if (!Array.isArray(model.results)) return null;
+
+        const mapped: WordsApiModel = {
+          word: model.word,
+          partOfSpeech: {},
+        };
+        for (const result of model.results) {
+          const pos = (mapped.partOfSpeech[result.partOfSpeech] ??= []);
+          pos.push({
+            definition: result.definition,
+            examples: result.examples,
+            synonyms: result.synonyms,
+            antonyms: result.antonyms,
+          });
+        }
+
+        return mapped;
+      },
     });
   }
 }
