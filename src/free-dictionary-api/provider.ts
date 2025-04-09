@@ -5,7 +5,7 @@ import { DefinitionApiClient } from "../definition-api-client.js";
 import { DefinitionCache } from "../definition-cache.js";
 import template from "./hint.hbs";
 
-export const hintTemplate: TemplateDelegate<DictionaryEntry> = template;
+export const hintTemplate: TemplateDelegate<DictionaryEntry[]> = template;
 
 /**
  * Handles the fetching of dictionary definitions from the [Dictionary
@@ -99,9 +99,7 @@ export class FreeDictionaryProvider implements AsyncDisposable {
       return null;
     }
 
-    const md = new vscode.MarkdownString(
-      definitions.map((definition) => hintTemplate(definition)).join("\n\n"),
-    );
+    const md = new vscode.MarkdownString(hintTemplate(definitions));
     (md as unknown as { supportHtml: boolean }).supportHtml = true;
     this.log.appendLine(`FreeDictionaryProvider: Providing hint for "${word}"`);
     return new vscode.Hover(md);
