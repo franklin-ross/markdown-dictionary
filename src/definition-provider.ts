@@ -22,6 +22,8 @@ export interface StandardProviderOpts<TModel extends object> {
 }
 
 export interface HintProvider {
+  /** Identifier for the provider */
+  id: string;
   /**
    * Find a definition for the given word and format it for display as a hover
    * hint in VSCode.
@@ -34,6 +36,9 @@ export interface HintProvider {
     word: string,
     cancel: vscode.CancellationToken,
   ): Promise<vscode.Hover | null | undefined>;
+
+  /** Clear all caches associated with this provider. */
+  clear(): Promise<void>;
 }
 
 export class Provider<TModel extends object>
@@ -81,6 +86,11 @@ export class Provider<TModel extends object>
         this.log.appendLine(`${opts.id}: definition cache not available`);
       }
     }
+  }
+
+  async clear(): Promise<void> {
+    this.cache.clear();
+    await this.cache.clearCache();
   }
 
   /**

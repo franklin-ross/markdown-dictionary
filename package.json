@@ -71,6 +71,15 @@
           "description": "Your WordsAPI key. You can get one for free at https://rapidapi.com/dpventures/api/wordsapi"
         }
       }
-    }
+    },
+    "commands": [
+      {
+        "command": "markdownDictionary.clearCaches",
+        "category": "Markdown Dictionary",
+        "shortTitle": "Clear caches",
+        "title": "Clear Markdown Dictionary caches",
+        "icon": "$(trash)"
+      }
+    ]
   }
 }

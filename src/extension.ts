@@ -1,3 +1,4 @@
+import { rm } from "node:fs/promises";
 import * as vscode from "vscode";
 import { ExtensionContext, Position, TextDocument } from "vscode";
 import { HintProvider } from "./definition-provider.js";
@@ -12,6 +13,32 @@ const isDesktop =
   (vscode.env as unknown as { appHost: string }).appHost === "desktop";
 
 async function activate(context: ExtensionContext) {
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "markdownDictionary.clearCaches",
+      async () => {
+        try {
+          for (const provider of providers.values()) {
+            log.appendLine(`Clearing cache for ${provider.id}`);
+            await provider.clear();
+          }
+
+          const storagePath = isDesktop ? context.globalStoragePath : undefined;
+          if (storagePath) {
+            log.appendLine(
+              `Deleting all files in extension storage path: ${storagePath}`,
+            );
+            await rm(storagePath, { recursive: true, force: true });
+          }
+
+          log.appendLine("Cleared caches");
+        } catch (error) {
+          log.appendLine("Error clearing caches: " + error);
+        }
+      },
+    ),
+  );
+
   context.subscriptions.push(
     vscode.languages.registerHoverProvider("markdown", {
       provideHover: (doc, position, cancel) => {
