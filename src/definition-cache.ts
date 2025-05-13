@@ -1,12 +1,24 @@
 import * as ndjson from "ndjson";
 import { createReadStream, createWriteStream } from "node:fs";
-import { mkdir, rm } from "node:fs/promises";
+import { mkdir, rm, stat } from "node:fs/promises";
 import { dirname } from "node:path";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { type OutputChannel } from "vscode";
 
 type Alias = { $alias: string };
+
+const fmtMs = new Intl.NumberFormat(undefined, {
+  style: "unit",
+  unit: "millisecond",
+  unitDisplay: "short", // or 'long' or 'narrow'
+});
+
+const formatKb = new Intl.NumberFormat(undefined, {
+  style: "unit",
+  unit: "kilobyte",
+  unitDisplay: "short",
+});
 
 export class DefinitionCache<DefinitionType extends object> {
   cachePath: undefined | string;
@@ -66,9 +78,12 @@ export class DefinitionCache<DefinitionType extends object> {
   async refresh() {
     if (!this.cachePath) return;
     try {
-      const count = await refresh(this.cachePath, this.cache);
+      const start = performance.now();
+      const newCount = await refresh(this.cachePath, this.cache);
+      const timeTaken = performance.now() - start;
+      const { size } = await stat(this.cachePath);
       this.log?.appendLine(
-        `DefinitionCache: Loaded ${this.cache.size} entries from ${this.cachePath}`,
+        `Loaded ${newCount} new entries from disk (${formatKb.format(size / 1024)}) in ${fmtMs.format(timeTaken)}`,
       );
     } catch (error) {
       if ((error as { code: string }).code !== "ENOENT")
@@ -88,10 +103,14 @@ export class DefinitionCache<DefinitionType extends object> {
 
       try {
         await mkdir(dirname(this.cachePath), { recursive: true });
+        const start = performance.now();
         await save(this.cachePath, this.cache);
         this.dirty = false;
+        const timeTaken = performance.now() - start;
+        const { size } = await stat(this.cachePath);
+        this.dirty = false;
         this.log?.appendLine(
-          `DefinitionCache: Saved ${this.cache.size} entries to ${this.cachePath}`,
+          `Saved ${this.cache.size} entries (${formatKb.format(size / 1024)}) to dictionary cache in ${fmtMs.format(timeTaken)}`,
         );
       } catch (error) {
         this.log?.appendLine("DefinitionCache: Save error: " + error);
@@ -110,9 +129,12 @@ export class DefinitionCache<DefinitionType extends object> {
     log?: undefined | OutputChannel,
   ): Promise<DefinitionCache<DefinitionType>> {
     try {
+      const start = performance.now();
       const cache = await load<DefinitionType>(cachePath);
+      const timeTaken = performance.now() - start;
+      const { size } = await stat(cachePath);
       log?.appendLine(
-        `DefinitionCache: Loaded ${cache.size} entries from ${cachePath}`,
+        `Loaded ${cache.size} entries from disk (${formatKb.format(size / 1024)}) in ${fmtMs.format(timeTaken)}`,
       );
       return new DefinitionCache<DefinitionType>({ cache, cachePath, log });
     } catch (error) {

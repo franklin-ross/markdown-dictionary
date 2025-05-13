@@ -2,12 +2,12 @@
   "name": "markdown-dictionary",
   "displayName": "Markdown Dictionary",
   "description": "English word definition hints for Visual Studio Code",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "license": "GPL-3.0",
   "publisher": "franklin-ross",
   "author": "Franklin Ross",
   "engines": {
-    "vscode": "^1.90.0"
+    "vscode": "^1.100.0"
   },
   "icon": "icon/icon.png",
   "galleryBanner": {
@@ -35,14 +35,14 @@
   },
   "devDependencies": {
     "@types/ndjson": "^2.0.4",
-    "@types/node": "^22.14.0",
-    "esbuild": "^0.25.2",
+    "@types/node": "^22.15.17",
+    "esbuild": "^0.25.4",
     "esbuild-plugin-handlebars": "^1.0.3",
     "handlebars": "^4.7.8",
     "ndjson": "^2.0.0",
     "prettier": "^3.5.3",
     "typescript": "^5.8.3",
-    "vscode": "^1.1.37"
+    "@types/vscode": "1.100.0"
   },
   "repository": {
     "type": "git",
